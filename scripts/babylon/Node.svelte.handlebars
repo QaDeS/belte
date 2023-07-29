@@ -1,0 +1,16 @@
+<script lang="ts">
+import { getScene } from "$lib/babylon"
+import { {{name}}{{#each imports}}, {{.}}{{/each}} } from "{{entry}}"
+
+{{>params}}
+
+const scene = getScene()
+
+const node = new {{name}}(
+    {{#each args}}
+        {{name}},
+    {{/each}}
+)
+
+</script>
+

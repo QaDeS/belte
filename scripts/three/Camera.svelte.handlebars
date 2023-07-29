@@ -1,0 +1,14 @@
+<script lang="ts">
+import { {{name}} } from "{{entry}}"
+
+{{#each params}}
+export let {{name}} : {{type}}
+{{/each}}
+
+const node = new {{name}}(
+    {{#each params}}
+        {{name}},
+    {{/each}}
+)
+</script>
+
