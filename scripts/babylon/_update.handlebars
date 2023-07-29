@@ -1,3 +1,7 @@
 {{#each updates}}
+if({{name}} === undefined) {{name}} = node.{{name}}
+{{/each}}
+
+{{#each updates}}
 $: if({{name}}) node.{{name}} = {{name}}
 {{/each}}

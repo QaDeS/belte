@@ -1,8 +1,12 @@
+<svelte:options accessors/>
 <script lang="ts">
-import { getScene } from "$lib/babylon"
-import { {{name}}{{#each imports}}, {{.}}{{/each}} } from "{{entry}}"
+import { onDestroy } from 'svelte'
+import { getCurrent, getScene, {{name}}{{#each imports}}, {{.}}{{/each}} } from "$lib/babylon"
 
-{{>params}}
+{{#each params}}
+export let {{name}} : {{{type}}}
+{{/each}}
+
 const scene = getScene()
 
 const node = new {{name}}(
@@ -11,7 +15,46 @@ const node = new {{name}}(
     {{/each}}
 )
 
-{{>update}}
+{{#each updates}}
+if({{name}} === undefined) {{name}} = node.{{name}}
+{{/each}}
+
+{{#each updates}}
+$: if({{name}}) node.{{name}} = {{name}}
+{{/each}}
+
+{{#with attachFn}}
+    {{#each params}}
+export let {{name}} : {{type}}
+    {{/each}}
+$: {
+    {{#if hasCanvas}}
+        const {canvas} = getCurrent()
+        node.attachControl(canvas
+    {{else}}
+        node.attachControl(
+    {{/if}}
+    {{#each params}}
+            {{#unless @first}}, {{/unless}}{{name}}
+    {{/each}}
+        );
+}
+
+node.onRender = () => {
+    {{! TODO only props modifies in the control handler }}
+    {{#each ../updates}}
+        {{name}} = node.{{name}};
+    {{/each}}
+}
+{{/with}}
+
+onDestroy(() => {
+    scene.remove{{nodeType}}(node);
+})
+
+export function get{{nodeType}}() {
+    return node
+}
 
 </script>
 

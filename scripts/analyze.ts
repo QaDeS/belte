@@ -31,12 +31,17 @@ function hasSceneAsLastArg(declaration : MethodDeclaration | ConstructorDeclarat
   return false
 }
 
-function getClassChain(cls : ClassDeclaration) : ClassDeclaration[] {
-  const result : ClassDeclaration[] = []
-  let c : ClassDeclaration | undefined = cls
+function getClassChain(cls : ClassDeclaration | InterfaceDeclaration) {
+  const result : (ClassDeclaration | InterfaceDeclaration | Type)[] = []
+  let c : ClassDeclaration | InterfaceDeclaration | undefined = cls
   while( c ) {
     result.push(c)
-    c = c.getBaseClass()
+    //result.push(...c.getBaseTypes())
+    if(c.getBaseClass) {
+      c = c.getBaseClass()
+    } else {
+      c = undefined
+    }
   }
   return result.reverse() // make sure subclasses can overwrite superclass members
 }
@@ -131,15 +136,19 @@ function toEntry(mod: string, file : SourceFile) : Entry {
           sourceLocation: toLoc(c),
         }))
 
-        const methods = getClassChain(cd).map((c) => {
+        const classChain = getClassChain(cd)
+
+        const methods = classChain.map((c) => {
           return c.getMethods().filter(p => p.getScope() === Scope.Public && !p.isStatic()).map(toMethod)
         }).flat()
 
-        const properties = getClassChain(cd).map(c => {
+        const properties = classChain.map(c => {
           return c.getProperties().filter(p => p.getScope() === Scope.Public && !p.isReadonly() && !p.isStatic()).map(toProperty)
         }).flat()
+
         e.classes[key] = {
           name: cname,
+          classChain: classChain.map((c) => c.getSymbol()?.getName()),
           constructors,
           methods: toDict(methods),
           properties: toDict(properties),
@@ -150,8 +159,10 @@ function toEntry(mod: string, file : SourceFile) : Entry {
       case ts.SyntaxKind.InterfaceDeclaration: {
         // console.log("Intf", decl.getName())
         const id = decl as InterfaceDeclaration
+        const classChain = getClassChain(id)
         e.interfaces[key] = {
           name: key,
+          classChain: classChain.map((c) => c.getSymbol()?.getName()),
           constructors: [],
           methods: toDict(id.getMethods().map(toMethod)),
           properties: toDict(id.getProperties().map(toProperty)),
