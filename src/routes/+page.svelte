@@ -1,5 +1,5 @@
 <script lang="ts">
-	import HemisphericLight from '$lib/gen/babylon/HemisphericLight.svelte';
+	import HemisphericLight from '$lib/gen/babylon/Light/HemisphericLight.svelte';
 	import { Tools } from '$lib/babylon';
 	import { Assets, Engine, Scene, ImportedMesh, Ground, StandardMaterial } from '$lib/index.ts';
     import {Vector3, Color3} from '@babylonjs/core'
@@ -32,7 +32,7 @@
 <Engine debug>
     <Scene>
         <ArcRotateCamera name="foo" bind:position={camPos} target={targetPos} alpha={Tools.ToRadians(90)} beta={Tools.ToRadians(65)} radius={10} attach setActiveOnSceneIfNoneActive/>
-        <HemisphericLight position={new Vector3(0, 1, 0)} intensity={$intensity} />
+        <HemisphericLight name="bar" direction={new Vector3(0, 1, 0)} intensity={$intensity} />
 
         <Ground width={6} height={6} material={material} />new Vector3(0, 0, -10)
         <StandardMaterial bind:this={material} diffuseColor={Color3.Red()} diffuseTexture={Assets.textures.checkerboard_basecolor_png.rootUrl}/>

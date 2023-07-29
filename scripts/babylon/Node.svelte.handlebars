@@ -3,7 +3,6 @@ import { getScene } from "$lib/babylon"
 import { {{name}}{{#each imports}}, {{.}}{{/each}} } from "{{entry}}"
 
 {{>params}}
-
 const scene = getScene()
 
 const node = new {{name}}(
@@ -11,6 +10,8 @@ const node = new {{name}}(
         {{name}},
     {{/each}}
 )
+
+{{>update}}
 
 </script>
 

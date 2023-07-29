@@ -12,5 +12,5 @@ export default {
         await import('./_params.handlebars'),
         await import('./_attach.handlebars'),
     ],
-    excludeProps: ["Scene"],   
+    excludeProps: ["Scene", "CameraInputsManager<Camera>", "IInspectable[]"],   
 }
