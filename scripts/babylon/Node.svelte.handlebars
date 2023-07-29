@@ -9,7 +9,11 @@ export let {{name}} : {{{type}}}
 
 const scene = getScene()
 
+{{#if factory}}
+const node = {{factory}}(
+{{else}}
 const node = new {{name}}(
+{{/if}}
     {{#each args}}
         {{name}},
     {{/each}}

@@ -1,15 +1,5 @@
 const Node = await import('./Node.svelte.handlebars')
 
-const templates = {}
-"Camera Light Material Texture".split(' ').forEach((t) => {
-    templates[t] = {
-        ...Node,
-        supportsClass(c) {
-            return c.name.endsWith(t)
-        }
-    }
-})
-
 export default {
     out: "src/lib/gen",
     root: "./node_modules",
@@ -23,6 +13,11 @@ export default {
 
         return function augment(ctx) {
             ctx.nodeType = ctx.classChain.find((c) => nodeTypes.includes(c))
+            const factory = types.functions['Create' + ctx.name]
+            if( factory ) {
+                ctx.factory = factory.name
+                ctx.args = factory.args
+            }
             if( ctx.methods ) {
                 const attach = ctx.methods.attachControl
                 if( attach ) {
@@ -34,7 +29,21 @@ export default {
             }
         }
     },
-    templates,
+    getTemplates(types) {
+        const templates = {}
+        "Camera Light Material Texture Mesh".split(' ').forEach((t) => {
+            templates[t] = {
+                ...Node,
+                supportsClass(c) {
+                    return c.classChain.includes(t)
+                },
+                supportsFunction(f) {
+                    return f.name.startsWith('Create') && types.classes[f.returnType].classChain.includes(t) 
+                }
+            }
+        })
+        return templates
+    },
     partials: [
         await import('./_update.handlebars'),
         await import('./_params.handlebars'),
