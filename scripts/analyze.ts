@@ -36,7 +36,7 @@ function getClassChain(cls : ClassDeclaration | InterfaceDeclaration) {
   let c : ClassDeclaration | InterfaceDeclaration | undefined = cls
   while( c ) {
     result.push(c)
-    //result.push(...c.getBaseTypes())
+    result.push(...(c?.getBaseTypes() ?? []))
     if(c.getBaseClass) {
       c = c.getBaseClass()
     } else {

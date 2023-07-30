@@ -24,8 +24,11 @@ const classNames = [...new Set([
     ...Object.keys(allMembers.classes),
     ...Object.keys(allMembers.interfaces),
     ...Object.keys(allMembers.types),
-    ...Object.keys(allMembers.enums)
+    ...Object.keys(allMembers.enums),
+    ...Object.keys(allMembers.functions),
 ].flat())].sort()
+allMembers.classNames = classNames
+
 const augmenter = createAugmenter ? createAugmenter(allMembers) : (ctx) => {/* do nothing */ }
 const templates = getTemplates(allMembers)
 
@@ -83,10 +86,10 @@ Object.entries(templates).forEach(([t, tpl]) => {
             ]
             const updates = props //.filter(p => !argNames.includes(p.name)) //.filter((p) => classNames.includes(p.type))
             const ts = params.map((a) => a?.type?.split(/[<>=()[\];|\s+]+/)).flat()
-            const symbols = [ctx.nodeType, ...ts, ...(ctx.factories || []).map((f) => f.name)]
+            const symbols = [ctx.nodeType, ctx.name, ctx.factory?.name, ...ts]
             const imported = [...new Set(symbols.filter((t) => t && classNames.includes(t)))]
-            const imports = imported.filter((i) => allMembers.classes[i] && !allMembers.classes[i].isAbstract)
             const typeImports = imported.filter((i) => allMembers.interfaces[i] || (allMembers.classes[i] && allMembers.classes[i].isAbstract))
+            const imports = imported.filter((i) => !typeImports.includes(i))
 
             ctx.params = toDict(params)
             ctx.updates = updates

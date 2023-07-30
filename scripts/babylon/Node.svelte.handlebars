@@ -1,7 +1,7 @@
 <svelte:options accessors/>
 <script lang="ts">
 import { onMount, onDestroy } from 'svelte'
-import { getCurrent, getScene, {{name}}{{#each imports}}, {{.}}{{/each}} } from "$lib/babylon"
+import { getCurrent, getScene{{#each imports}}, {{.}}{{/each}} } from "$lib/babylon"
 {{#each typeImports}}
     import type { {{.}} } from '@babylonjs/core'
 {{/each}}
