@@ -2,7 +2,7 @@ import './handlebarsPlugin'
 import * as fs from 'node:fs';
 import { dirname, join } from 'node:path';
 import ts, { Type } from "typescript"
-import { Project, SourceFile, Symbol as MSymbol, PropertySignature, VariableDeclaration, ClassDeclaration, ConstructorDeclaration, MethodDeclaration, FunctionDeclaration, TypeNode, ParameterDeclaration, Signature, InterfaceDeclaration, MethodSignature, PropertyDeclaration } from "ts-morph";
+import { Project, SourceFile, Symbol as MSymbol, PropertySignature, VariableDeclaration, ClassDeclaration, ConstructorDeclaration, MethodDeclaration, FunctionDeclaration, TypeNode, ParameterDeclaration, Signature, InterfaceDeclaration, MethodSignature, PropertyDeclaration, SetAccessorDeclaration } from "ts-morph";
 import { argv } from 'bun';
 import { ClassMethod, ClassProperty, Constructor, Entries, Entry, Named, toDict } from './types';
 import { Scope } from 'ts-morph';
@@ -97,7 +97,7 @@ function toMethod(m : MethodDeclaration | MethodSignature) : ClassMethod {
   }
 }
 
-function toProperty(p : PropertyDeclaration | PropertySignature) : ClassProperty {
+function toProperty(p : PropertyDeclaration | PropertySignature | SetAccessorDeclaration) : ClassProperty {
   return {
     name: p.getName(),
     type: toSymbol(p.getType()),
@@ -124,7 +124,6 @@ function toEntry(mod: string, file : SourceFile) : Entry {
       case ts.SyntaxKind.ClassDeclaration: {
         //console.log("  Class", decl.getName(), decl.getConstructors().length)
         const cd = decl as ClassDeclaration
-        if( cd.isAbstract() ) break;
 
         const cname = decl.getSymbol()?.getName()
         if (!cname) continue
@@ -138,16 +137,16 @@ function toEntry(mod: string, file : SourceFile) : Entry {
 
         const classChain = getClassChain(cd)
 
-        const methods = classChain.map((c) => {
-          return c.getMethods().filter(p => p.getScope() === Scope.Public && !p.isStatic()).map(toMethod)
-        }).flat()
+        const methods = cd.getMethods().filter(p => p.getScope() === Scope.Public && !p.isStatic()).map(toMethod)
 
-        const properties = classChain.map(c => {
-          return c.getProperties().filter(p => p.getScope() === Scope.Public && !p.isReadonly() && !p.isStatic()).map(toProperty)
-        }).flat()
+        const properties = [
+          ...cd.getSetAccessors().filter(p => p.getScope() === Scope.Public && !p.isStatic())
+          , ...cd.getProperties().filter(p => p.getScope() === Scope.Public && !p.isReadonly() && !p.isStatic())
+        ].map(toProperty)
 
         e.classes[key] = {
           name: cname,
+          isAbstract: cd.isAbstract(),
           classChain: classChain.map((c) => c.getSymbol()?.getName()),
           constructors,
           methods: toDict(methods),
@@ -162,6 +161,7 @@ function toEntry(mod: string, file : SourceFile) : Entry {
         const classChain = getClassChain(id)
         e.interfaces[key] = {
           name: key,
+          isAbstract: true,
           classChain: classChain.map((c) => c.getSymbol()?.getName()),
           constructors: [],
           methods: toDict(id.getMethods().map(toMethod)),

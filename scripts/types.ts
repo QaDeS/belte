@@ -43,6 +43,7 @@ export type ClassProperty = IClassProperty & Named
 
 interface ExportedMember {
     name: string;
+    isAbstract: boolean;
     classChain: (string | undefined)[];
     constructors: Constructor[];
     methods: Record<string, ClassMethod>;

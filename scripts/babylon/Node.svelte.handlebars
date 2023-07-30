@@ -1,56 +1,87 @@
 <svelte:options accessors/>
 <script lang="ts">
-import { onDestroy } from 'svelte'
+import { onMount, onDestroy } from 'svelte'
 import { getCurrent, getScene, {{name}}{{#each imports}}, {{.}}{{/each}} } from "$lib/babylon"
+{{#each typeImports}}
+    import type { {{.}} } from '@babylonjs/core'
+{{/each}}
 
+export let setter : (t : {{nodeType}}) => void
 {{#each params}}
 export let {{name}} : {{{type}}}
 {{/each}}
-
-const scene = getScene()
-
-{{#if factory}}
-const node = {{factory}}(
-{{else}}
-const node = new {{name}}(
-{{/if}}
-    {{#each args}}
-        {{name}},
-    {{/each}}
-)
-
-{{#each updates}}
-if({{name}} === undefined) {{name}} = node.{{name}}
-{{/each}}
-
-{{#each updates}}
-$: if({{name}}) node.{{name}} = {{name}}
-{{/each}}
-
 {{#with attachFn}}
     {{#each params}}
 export let {{name}} : {{type}}
     {{/each}}
-$: {
-    {{#if hasCanvas}}
-        const {canvas} = getCurrent()
-        node.attachControl(canvas
-    {{else}}
-        node.attachControl(
-    {{/if}}
-    {{#each params}}
-            {{#unless @first}}, {{/unless}}{{name}}
-    {{/each}}
-        );
+{{/with}}
+
+const setters = {
+{{#each updates}}
+{{#if nodeType}}
+    {{name}}(val : {{type}}) {
+        {{name}} = val
+    },
+{{/if}}
+{{/each}}
 }
 
-node.onRender = () => {
-    {{! TODO only props modifies in the control handler }}
-    {{#each ../updates}}
-        {{name}} = node.{{name}};
+const scene = getScene()
+
+let node
+// onMount(() => {
+    {{#with factory}}
+    node = {{name}}(
+        {{#each arguments}}
+            {{name}},
+        {{/each}}
+    )
+    {{else}}
+    node = new {{name}}(
+        {{#each args}}
+            {{name}},
+        {{/each}}
+    )
+    {{/with}}
+    if(setter) setter(node)
+
+    {{#each updates}}
+    if({{name}} === undefined) {{name}} = node.{{name}}
     {{/each}}
+    {{#with attachFn}}
+    $: {
+        {{#if hasCanvas}}
+            const {canvas} = getCurrent()
+            node.attachControl(canvas{{#each params}}, {{name}}{{/each}});
+        {{else}}
+            node.attachControl({{#each params}}{{#unless @first}}, {{/unless}}{{name}}{{/each}});
+        {{/if}}
+    }
+
+    node.onRender = () => {
+        {{! TODO only props modifies in the control handler }}
+        {{#each ../updates}}
+            {{name}} = node.{{name}};
+        {{/each}}
+    }
+    {{/with}}
+//})
+
+{{#each updates}}
+{{#if nodeType}}
+$: {
+    if(node) {
+        if( {{name}}?.get{{nodeType}} ) {
+            node.{{name}} = {{name}}.get{{nodeType}}()
+        } else {
+            node.{{name}} = {{name}}
+        }
+    }
 }
-{{/with}}
+{{else}}
+$: if(node && {{name}}) node.{{name}} = {{name}}
+{{/if}}
+{{/each}}
 
 onDestroy(() => {
     scene.remove{{nodeType}}(node);
@@ -62,3 +93,4 @@ export function get{{nodeType}}() {
 
 </script>
 
+<slot {setters} />

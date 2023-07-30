@@ -2,12 +2,15 @@
 	import StandardMaterial from './../lib/gen/babylon/Material/StandardMaterial.svelte';
 	import HemisphericLight from './../lib/gen/babylon/Light/HemisphericLight.svelte';
 	import { Tools } from '$lib/babylon';
-	import { Assets, Engine, Scene, ImportedMesh, Ground } from '$lib/index.ts';
-    import {Texture, Vector3, Color3} from '@babylonjs/core'
+	import { Assets, Engine, Scene, ImportedMesh } from '$lib/index.ts';
+    import {Vector3, Color3} from '@babylonjs/core'
 	import { onMount } from 'svelte';
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
 	import ArcRotateCamera from '../lib/gen/babylon/Camera/ArcRotateCamera.svelte';
+	import Ground from '../lib/gen/babylon/Mesh/Ground.svelte';
+	import { writable } from 'svelte/store';
+	import Texture from '../lib/gen/babylon/Texture/Texture.svelte';
 
     const textureUrl = Assets.textures.checkerboard_basecolor_png.rootUrl
 
@@ -29,11 +32,7 @@
         easing: cubicOut
     });
 
-    const textures = {}
-    function getTexture(url) {
-        if(!textures[url]) textures[url] = new Texture(url, scene)
-        return textures[url]
-    }
+    let texture = writable()
 let scene
 </script>
 
@@ -43,8 +42,10 @@ let scene
         <ArcRotateCamera name="foo" bind:position={camPos} target={targetPos} alpha={Tools.ToRadians(90)} beta={Tools.ToRadians(65)} radius={10} attach setActiveOnSceneIfNoneActive/>
         <HemisphericLight name="bar" direction={new Vector3(0, 1, 0)} intensity={$intensity} />
 
-        <Ground width={6} height={6} material={material} />new Vector3(0, 0, -10)
-        <StandardMaterial bind:this={material} diffuseColor={Color3.Red()} diffuseTexture={getTexture(textureUrl)}/>
+        <Ground options={{width:6, height: 6}} material={material} />
+        <StandardMaterial let:setters={{diffuseTexture}} bind:this={material} diffuseColor={Color3.Red()} diffuseTexture={$texture}>
+            <Texture setter={diffuseTexture} url={textureUrl} />
+        </StandardMaterial>
         <ImportedMesh rootUrl={Assets.meshes.Yeti.rootUrl} sceneFilename={Assets.meshes.Yeti.filename} scaling={$s}/>
     </Scene>
 </Engine>

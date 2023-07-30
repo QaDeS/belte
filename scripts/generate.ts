@@ -24,13 +24,13 @@ const classNames = [...new Set([
     ...Object.keys(allMembers.classes),
     ...Object.keys(allMembers.interfaces),
     ...Object.keys(allMembers.types),
-    ...Object.keys(allMembers.enums)    
+    ...Object.keys(allMembers.enums)
 ].flat())].sort()
-const augmenter = createAugmenter ? createAugmenter(allMembers) : (ctx) => {/* do nothing */}
+const augmenter = createAugmenter ? createAugmenter(allMembers) : (ctx) => {/* do nothing */ }
 const templates = getTemplates(allMembers)
 
 Object.entries(templates).forEach(([t, tpl]) => {
-    for( const mod of types) {
+    for (const mod of types) {
         const constructors = Object.entries(mod.classes)
             .filter(([name, c]) => (tpl.supportsClass(c) && c.constructors[0]))
             .map(([name, c]) => ({
@@ -42,46 +42,60 @@ Object.entries(templates).forEach(([t, tpl]) => {
                 methods: c.methods,
                 args: c.constructors[0].arguments,
                 properties: c.properties
-        }))
+            }))
 
-        const factories = Object.entries(mod.functions)
+        const factories = {}
+        Object.entries(mod.functions)
             .filter(([name, f]) => (classNames.includes(f.returnType) && tpl.supportsFunction(f)))
-            .map(([name, f]) => {
-                const c = allMembers.classes[f.returnType]
-                return {
-                    tplName: c.name,
-                    factory: name,
-                    type: c,
-                    entry: mod.name,
-                    name: c.name,
-                    classChain: c.classChain,
-                    methods: c.methods,
-                    args: f.arguments,
-                    properties: c.properties
-                }
-        })
+            .forEach(([name, f]) => factories[f.returnType] = [...(factories[f.returnType] ?? []), f])
 
-        const contexts = [...constructors, ...factories]
+        const factoryContexts = Object.entries(factories).map(([name, fs]) => {
+            const c = allMembers.classes[name]
+            return fs.map((f) => ({
+                tplName: f.name, // TODO remove Create
+                factory: f,
+                type: c,
+                entry: mod.name,
+                name: f.name,
+                classChain: c.classChain,
+                methods: c.methods,
+                args: f.arguments,
+                properties: c.properties
+            }))
+        }).flat()
+
+        const contexts = [...constructors, ...factoryContexts]
+        // augment properties and methods from the classChain
+        contexts.forEach((ctx) => {
+            const superClasses = ctx.classChain
+            .map((scn) => allMembers.classes[scn])
+            ctx.properties = Object.assign({}, ...(superClasses.map((sc) => sc.properties)))
+            ctx.methods = Object.assign({}, ...(superClasses.map((sc) => sc.methods)))
+        })
         contexts.forEach((ctx) => {
             augmenter(ctx)
 
             const argNames = ctx.args.map(a => a.name)
+            const props = Object.values(ctx.properties).filter((p) => !(excludeProps ?? []).includes(p.type) && !p.name.startsWith('_') && !p.name.startsWith('on') && (!p.type?.includes("=>") | p.type.endsWith('}')))
             const params = [
-                ...ctx.args.map((a) => ({name: a.name, type: a.type})),
-                ...Object.values(ctx.properties)
-            ].filter((p) => !(excludeProps ?? []).includes(p.type) && !p.name.startsWith('_') && !p.type?.includes("=>") )
-            const updates = params.filter(p => !argNames.includes(p.name)) //.filter((p) => classNames.includes(p.type))
+                ...ctx.args.filter((p) => !(excludeProps ?? []).includes(p.type)).map((a) => ({ name: a.name, type: a.type })),
+                ...props,
+            ]
+            const updates = props //.filter(p => !argNames.includes(p.name)) //.filter((p) => classNames.includes(p.type))
             const ts = params.map((a) => a?.type?.split(/[<>=()[\];|\s+]+/)).flat()
-            const symbols = [...ts, ctx.factory, ctx.type.name]
-            const imports = new Set(symbols.filter((t) => t && classNames.includes(t)))
+            const symbols = [...ts, ...(ctx.factories || []).map((f) => f.name)]
+            const imported = [...new Set(symbols.filter((t) => t && classNames.includes(t)))]
+            const imports = imported.filter((i) => allMembers.classes[i] && !allMembers.classes[i].isAbstract)
+            const typeImports = imported.filter((i) => allMembers.interfaces[i] || (allMembers.classes[i] && allMembers.classes[i].isAbstract))
 
             ctx.params = toDict(params)
             ctx.updates = updates
             ctx.imports = imports // TODO order by entry
+            ctx.typeImports = typeImports
 
             const src = tpl.render(ctx)
             const outPath = join(out ?? "out", lib, t)
-            mkdirSync(outPath, {recursive: true})
+            mkdirSync(outPath, { recursive: true })
             Bun.write(join(outPath, ctx.tplName + "." + tpl.ext), src)
         })
     }

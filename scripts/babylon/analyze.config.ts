@@ -13,10 +13,8 @@ export default {
 
         return function augment(ctx) {
             ctx.nodeType = ctx.classChain.find((c) => nodeTypes.includes(c))
-            const factory = types.functions['Create' + ctx.name]
-            if( factory ) {
-                ctx.factory = factory.name
-                ctx.args = factory.args
+            if( ctx.factory ) {
+                ctx.tplName = ctx.factory.name.split('Create').pop()
             }
             if( ctx.methods ) {
                 const attach = ctx.methods.attachControl
@@ -26,6 +24,13 @@ export default {
                         hasCanvas: attach.arguments.map((a) => a.name).includes('ignored'),
                     }
                 }    
+            }
+            if( ctx.properties ) {
+                Object.values(ctx.properties).forEach((p) => {
+                    const t = types.classes[p.type];
+                    if( !t ) return
+                    p.nodeType = t.classChain.find((c) => nodeTypes.includes(c))
+                })
             }
         }
     },
@@ -38,7 +43,7 @@ export default {
                     return c.classChain.includes(t)
                 },
                 supportsFunction(f) {
-                    return f.name.startsWith('Create') && types.classes[f.returnType].classChain.includes(t) 
+                    return f.name.startsWith('Create') && types.classes[f.returnType].classChain.includes(t) && f.returnType.endsWith('Mesh')
                 }
             }
         })
@@ -49,5 +54,5 @@ export default {
         await import('./_params.handlebars'),
         await import('./_attach.handlebars'),
     ],
-    excludeProps: ["Scene", "CameraInputsManager<Camera>", "IInspectable[]"],   
+    excludeProps: ["Scene"],   
 }
