@@ -1,0 +1,6 @@
+{
+    "baseUrl": "./src",
+    "paths": {
+        "$lib/*": ["src/lib/*"]
+    }
+}
