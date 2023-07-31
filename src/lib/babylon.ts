@@ -1,9 +1,6 @@
 import {setContext, getContext} from 'svelte';
-export type * from "@babylonjs/core"
 export * from "@babylonjs/core"
-export type * from "@babylonjs/materials"
 export * from "@babylonjs/materials"
-export type * from "@babylonjs/loaders"
 export * from "@babylonjs/loaders"
 
 export const key = Symbol();

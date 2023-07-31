@@ -6,7 +6,7 @@
 	import Texture from '../lib/gen/babylon/Texture/Texture.svelte';
 
     import { Tools } from '$lib/babylon';
-	import { Assets, Engine, Scene, ImportedMesh } from '$lib/index.ts';
+	import { Assets, Engine, Scene, ImportedMesh } from '$lib';
     import {Vector3, Color3} from '@babylonjs/core'
 	import { onMount } from 'svelte';
 	import { tweened } from 'svelte/motion';

@@ -28,8 +28,8 @@ const setters = {
 
 const scene = getScene()
 
-let node
-// onMount(() => {
+let node : {{name}}
+onMount(() => {
     {{#with factory}}
     node = {{name}}(
         {{#each arguments}}
@@ -65,7 +65,7 @@ let node
         {{/each}}
     }
     {{/with}}
-//})
+})
 
 {{#each updates}}
 {{#if nodeType}}

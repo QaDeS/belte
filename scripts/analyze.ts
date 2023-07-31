@@ -1,11 +1,12 @@
 import './handlebarsPlugin'
 import * as fs from 'node:fs';
-import { dirname, join } from 'node:path';
-import ts, { Type } from "typescript"
-import { Project, SourceFile, Symbol as MSymbol, PropertySignature, VariableDeclaration, ClassDeclaration, ConstructorDeclaration, MethodDeclaration, FunctionDeclaration, TypeNode, ParameterDeclaration, Signature, InterfaceDeclaration, MethodSignature, PropertyDeclaration, SetAccessorDeclaration } from "ts-morph";
+import { join } from 'node:path';
+import ts from "typescript"
+import { Project, SourceFile, Symbol as MSymbol, PropertySignature, VariableDeclaration, ClassDeclaration, MethodDeclaration, FunctionDeclaration, TypeNode, ParameterDeclaration, InterfaceDeclaration, MethodSignature, PropertyDeclaration, SetAccessorDeclaration, Type, EnumDeclaration, ModuleDeclaration } from "ts-morph";
 import { argv } from 'bun';
-import { ClassMethod, ClassProperty, Constructor, Entries, Entry, Named, toDict } from './types';
+import { ArgumentList, ClassMethod, ClassProperty, Constructor, Entry, toDict } from './types';
 import { Scope } from 'ts-morph';
+import { Node } from 'ts-morph';
 
 
 const lib = argv[2]
@@ -21,27 +22,16 @@ entries.forEach((entry) => {
   entryFiles[mod] = project.addSourceFilesAtPaths([filename])[0]
 })
 
-console.log(Object.keys(entryFiles))
-
-function hasSceneAsLastArg(declaration : MethodDeclaration | ConstructorDeclaration | FunctionDeclaration) {
-  const parameters = declaration?.getParameters();
-  if (!parameters || parameters.length < 2) return false
-  const lastParameterType = parameters[parameters.length - 1].getType();
-  if (lastParameterType?.getSymbol()?.getName() === "Scene") return true;
-  return false
-}
+// console.log(Object.keys(entryFiles))
 
 function getClassChain(cls : ClassDeclaration | InterfaceDeclaration) {
   const result : (ClassDeclaration | InterfaceDeclaration | Type)[] = []
-  let c : ClassDeclaration | InterfaceDeclaration | undefined = cls
+  let c : ClassDeclaration | InterfaceDeclaration | undefined= cls
   while( c ) {
     result.push(c)
     result.push(...(c?.getBaseTypes() ?? []))
-    if(c.getBaseClass) {
-      c = c.getBaseClass()
-    } else {
-      c = undefined
-    }
+    if( !c['getBaseClass'] ) break;
+    c = (c as ClassDeclaration).getBaseClass()
   }
   return result.reverse() // make sure subclasses can overwrite superclass members
 }
@@ -51,11 +41,11 @@ function getClassChain(cls : ClassDeclaration | InterfaceDeclaration) {
  * @param p Returns the properly formatted TypeScript argument type
  * @returns 
  */
-function toSymbol(t : TypeNode, p? : ParameterDeclaration) : string  {
+function toSymbol(t : Type, p? : ParameterDeclaration) : string  {
   return t.getText(p, ts.TypeFormatFlags.NoTruncation )
 }
 
-function toLoc(m : any) : string {
+function toLoc(m : Node) : string {
   return `${m.getSourceFile().getFilePath()}:${m.getStartLineNumber()}`
 }
 
@@ -65,27 +55,6 @@ function mapArguments(params : ParameterDeclaration[]) : ArgumentList {
     optional: p.hasQuestionToken(),
     type: toSymbol(p.getType(), p),
   }))
-}
-
-function getCircularReplacer(depth = 5) {
-  const ancestors = [];
-  return function (key, value) {
-    if( ancestors.length > depth ) return "ignored"
-
-    if (typeof value !== "object" || value === null) {
-      return value;
-    }
-    // `this` is the object that value is contained in,
-    // i.e., its direct parent.
-    while (ancestors.length > 0 && ancestors.at(-1) !== this) {
-      ancestors.pop();
-    }
-    if (ancestors.includes(value)) {
-      return "[Circular]";
-    }
-    ancestors.push(value);
-    return value;
-  };
 }
 
 function toMethod(m : MethodDeclaration | MethodSignature) : ClassMethod {
@@ -117,7 +86,7 @@ function toEntry(mod: string, file : SourceFile) : Entry {
     namespaces: {},
   }
   
-  console.log(mod, toLoc(file))
+  console.log("Processing", mod, toLoc(file))
   for( const [key, [decl]] of file.getExportedDeclarations() ) {
     // console.log(key, decl.getKindName())
     switch(decl.getKind()) {
@@ -130,7 +99,7 @@ function toEntry(mod: string, file : SourceFile) : Entry {
         // console.log(cname, toLoc(cd))
 
         const constructors = cd.getConstructors().map((c) : Constructor => ({
-          name: cname,
+          // name: cname,
           arguments: mapArguments(c.getParameters()),
           sourceLocation: toLoc(c),
         }))
@@ -170,7 +139,7 @@ function toEntry(mod: string, file : SourceFile) : Entry {
         break;
       }
       case ts.SyntaxKind.VariableDeclaration: {
-        break;
+        /* FIXME
         const vd = decl as VariableDeclaration
         const stmt = vd.getVariableStatement()
         if (!stmt) continue
@@ -213,24 +182,30 @@ function toEntry(mod: string, file : SourceFile) : Entry {
         })
 
         // console.log("Var", vd.getName(), vd.getType().getText())
+        */
         break;
       }
       case ts.SyntaxKind.FunctionDeclaration: {
         // console.log("Func", key, decl.getName(), toLoc(decl))
+        const fdecl = decl as FunctionDeclaration
+        const fname = fdecl.getName()
+        if( !fname ) break;
+
         e.functions[key] = {
-          name: decl.getName(),
-          arguments: mapArguments(decl.getParameters()),
-          returnType: toSymbol(decl.getReturnType()),
-          sourceLocation: toLoc(decl),
+          name: fname,
+          arguments: mapArguments(fdecl.getParameters()),
+          returnType: toSymbol(fdecl.getReturnType()),
+          sourceLocation: toLoc(fdecl),
         }
         break;
       }
       case ts.SyntaxKind.EnumDeclaration: {
         // console.log("Enum", decl.getName())
+        const edecl = decl as EnumDeclaration
         e.enums[key] = {
-          name: decl.getName(),
-          members: decl.getMembers().map((m) => m.getName()),
-          sourceLocation: toLoc(decl),
+          name: edecl.getName(),
+          values: edecl.getMembers().map((m) => m.getName()),
+          sourceLocation: toLoc(edecl),
         }
         break;
       }
@@ -242,11 +217,12 @@ function toEntry(mod: string, file : SourceFile) : Entry {
         break;
       }
       case ts.SyntaxKind.ModuleDeclaration: {
-        e.namespaces[key] = toEntry(decl.getName(), decl)
+        const mdecl = (decl as ModuleDeclaration)
+        e.namespaces[key] = toEntry(mdecl.getName(), mdecl) // FIXME
         break;
       }
       case ts.SyntaxKind.SourceFile: {
-        e.namespaces[key] = toEntry(key, decl)
+        e.namespaces[key] = toEntry(key, decl as SourceFile)
         break;
       }
       default:

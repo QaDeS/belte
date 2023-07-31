@@ -1,9 +1,7 @@
 import './handlebarsPlugin'
-import { Handlebars } from './handlebarsPlugin'
 import { argv } from 'bun';
 import { join } from 'path';
-import { Entries, Entry, Named, toDict } from './types';
-import { nodeAnimationData } from '@babylonjs/loaders/glTF/2.0/glTFLoaderAnimation';
+import { Members, Entry, toDict } from './types';
 import { mkdirSync } from 'fs';
 
 const lib = argv[2]
@@ -13,7 +11,7 @@ const types = (await import(join(process.cwd(), `types.${lib}.json`))).default a
 
 console.log(config)
 
-const allMembers : any = {}
+const allMembers : Members = {}
 types.forEach((t) => {
     "classes interfaces types enums functions".split(' ').forEach((k) => {
         allMembers[k] = Object.assign({}, allMembers[k], t[k])
