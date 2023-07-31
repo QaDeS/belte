@@ -27,10 +27,9 @@ const classNames = [...new Set([
 ].flat())].sort()
 allMembers.classNames = classNames
 
-const augmenter = createAugmenter ? createAugmenter(allMembers) : (ctx) => {/* do nothing */ }
-const templates = getTemplates(allMembers)
+const templates = await getTemplates(allMembers)
 
-Object.entries(templates).forEach(([t, tpl]) => {
+Object.entries(templates).forEach(([tplName, tpl]) => {
     for (const mod of types) {
         const constructors = Object.entries(mod.classes)
             .filter(([name, c]) => (tpl.supportsClass(c) && c.constructors[0]))
@@ -74,7 +73,7 @@ Object.entries(templates).forEach(([t, tpl]) => {
             ctx.methods = Object.assign({}, ...(superClasses.map((sc) => sc.methods)))
         })
         contexts.forEach((ctx) => {
-            augmenter(ctx)
+            if(tpl.preprocess) tpl.preprocess(ctx)
 
             const argNames = ctx.args.map(a => a.name)
             const props = Object.values(ctx.properties).filter((p) => !(excludeProps ?? []).includes(p.type) && !p.name.startsWith('_') && !p.name.startsWith('on') && (!p.type?.includes("=>") | p.type.endsWith('}')))
@@ -95,7 +94,7 @@ Object.entries(templates).forEach(([t, tpl]) => {
             ctx.typeImports = typeImports
 
             const src = tpl.render(ctx)
-            const outPath = join(out ?? "out", lib, t)
+            const outPath = join(out ?? "out", lib, tplName)
             mkdirSync(outPath, { recursive: true })
             Bun.write(join(outPath, ctx.tplName + "." + tpl.ext), src)
         })

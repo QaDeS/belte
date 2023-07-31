@@ -12,7 +12,7 @@ export let {{name}} : {{{type}}}
 {{/each}}
 {{#with attachFn}}
     {{#each params}}
-export let {{name}} : {{type}}
+export let {{name}} : {{{type}}}
     {{/each}}
 {{/with}}
 
@@ -28,7 +28,7 @@ const setters = {
 
 const scene = getScene()
 
-let node : {{name}}
+let node : {{nodeClass}}
 onMount(() => {
     {{#with factory}}
     node = {{name}}(
@@ -48,24 +48,26 @@ onMount(() => {
     {{#each updates}}
     if({{name}} === undefined) {{name}} = node.{{name}}
     {{/each}}
-    {{#with attachFn}}
-    $: {
-        {{#if hasCanvas}}
-            const {canvas} = getCurrent()
-            node.attachControl(canvas{{#each params}}, {{name}}{{/each}});
-        {{else}}
-            node.attachControl({{#each params}}{{#unless @first}}, {{/unless}}{{name}}{{/each}});
-        {{/if}}
-    }
-
-    node.onRender = () => {
-        {{! TODO only props modifies in the control handler }}
-        {{#each ../updates}}
-            {{name}} = node.{{name}};
-        {{/each}}
-    }
-    {{/with}}
 })
+{{#with attachFn}}
+$: {
+    if( node ) {
+    {{#if hasCanvas}}
+        const {canvas} = getCurrent()
+        node.attachControl(canvas{{#each params}}, {{name}}{{/each}});
+    {{else}}
+        node.attachControl({{#each params}}{{#unless @first}}, {{/unless}}{{name}}{{/each}});
+    {{/if}}
+
+        node.onRender = () => {
+            {{! TODO only props modifies in the control handler }}
+            {{#each ../updates}}
+                {{name}} = node.{{name}};
+            {{/each}}
+        }
+    }
+}
+{{/with}}
 
 {{#each updates}}
 {{#if nodeType}}

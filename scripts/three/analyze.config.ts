@@ -3,7 +3,9 @@ export default {
     entries: [
         'three'
     ],
-    templates: {
-        Camera: await import('./Camera.svelte.handlebars') 
+    async getTemplates(types) {
+        return {
+            Camera: await import('./Camera.svelte.handlebars'),
+        }
     }
 }
