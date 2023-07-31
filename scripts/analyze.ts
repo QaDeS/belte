@@ -24,16 +24,31 @@ entries.forEach((entry) => {
 
 // console.log(Object.keys(entryFiles))
 
-function getClassChain(cls : ClassDeclaration | InterfaceDeclaration) {
-  const result : (ClassDeclaration | InterfaceDeclaration | Type)[] = []
-  let c : ClassDeclaration | InterfaceDeclaration | undefined= cls
-  while( c ) {
-    result.push(c)
-    result.push(...(c?.getBaseTypes() ?? []))
-    if( !c['getBaseClass'] ) break;
-    c = (c as ClassDeclaration).getBaseClass()
+function getClassChain(cls : ClassDeclaration | InterfaceDeclaration) : string[] {
+  const result : (string | undefined)[] = []
+  const todo : Array<ClassDeclaration | InterfaceDeclaration | undefined> = [cls]
+  while( todo.length ) {
+    const c = todo.shift()
+    if( !c ) continue
+
+    result.push(toName(c))
+
+    result.push(...(c?.getBaseTypes() ?? []).map(toName))
+
+    const heritages = c.getHeritageClauses()
+    const typeNodes = heritages.map((h) => h.getTypeNodes()).flat()
+    const typeArgs = typeNodes.map((n) => n.getText())
+    result.push(...typeArgs)
+    result.push(...([].flat().map(e => e?.getTypeNodes() ?? []).flat().map(e => e?.getTypeArguments()).flat()).map(toName))
+    
+    if( !c['getBaseClass'] ) continue;
+    todo.push((c as ClassDeclaration).getBaseClass())
   }
-  return result.reverse() // make sure subclasses can overwrite superclass members
+  return [...new Set(result)].reverse().filter(Boolean) // make sure subclasses can overwrite superclass members
+}
+
+function toName(c : any /* TODO specify */) {
+  return c?.getSymbol()?.getName()
 }
 
 /**
@@ -104,8 +119,6 @@ function toEntry(mod: string, file : SourceFile) : Entry {
           sourceLocation: toLoc(c),
         }))
 
-        const classChain = getClassChain(cd)
-
         const methods = cd.getMethods().filter(p => p.getScope() === Scope.Public && !p.isStatic()).map(toMethod)
 
         const properties = [
@@ -116,7 +129,7 @@ function toEntry(mod: string, file : SourceFile) : Entry {
         e.classes[key] = {
           name: cname,
           isAbstract: cd.isAbstract(),
-          classChain: classChain.map((c) => c.getSymbol()?.getName()),
+          classChain: getClassChain(cd),
           constructors,
           methods: toDict(methods),
           properties: toDict(properties),
@@ -127,14 +140,13 @@ function toEntry(mod: string, file : SourceFile) : Entry {
       case ts.SyntaxKind.InterfaceDeclaration: {
         // console.log("Intf", decl.getName())
         const id = decl as InterfaceDeclaration
-        const classChain = getClassChain(id)
         e.interfaces[key] = {
           name: key,
           isAbstract: true,
-          classChain: classChain.map((c) => c.getSymbol()?.getName()),
+          classChain: getClassChain(id),
           constructors: [],
           methods: toDict(id.getMethods().map(toMethod)),
-          properties: toDict(id.getProperties().map(toProperty)),
+          properties: {} //toDict(id.getProperties().map(toProperty)),
         }
         break;
       }

@@ -29,6 +29,7 @@ allMembers.classNames = classNames
 
 const templates = await getTemplates(allMembers)
 
+// TODO prevent double generation (Mesh and TransformNode)
 Object.entries(templates).forEach(([tplName, tpl]) => {
     for (const mod of types) {
         const constructors = Object.entries(mod.classes)
@@ -52,7 +53,7 @@ Object.entries(templates).forEach(([tplName, tpl]) => {
         const factoryContexts = Object.entries(factories).map(([name, fs]) => {
             const c = allMembers.classes[name]
             return fs.map((f) => ({
-                tplName: f.name, // TODO remove Create
+                tplName: f.name,
                 factory: f,
                 type: c,
                 entry: mod.name,
@@ -68,9 +69,9 @@ Object.entries(templates).forEach(([tplName, tpl]) => {
         // augment properties and methods from the classChain
         contexts.forEach((ctx) => {
             const superClasses = ctx.classChain
-            .map((scn) => allMembers.classes[scn])
-            ctx.properties = Object.assign({}, ...(superClasses.map((sc) => sc.properties)))
-            ctx.methods = Object.assign({}, ...(superClasses.map((sc) => sc.methods)))
+            .map((scn) => allMembers.classes[scn] ?? allMembers.interfaces[scn] )
+            ctx.properties = Object.assign({}, ...(superClasses.map((sc) => sc?.properties)))
+            ctx.methods = Object.assign({}, ...(superClasses.map((sc) => sc?.methods)))
         })
         contexts.forEach((ctx) => {
             if(tpl.preprocess) tpl.preprocess(ctx)
@@ -85,7 +86,7 @@ Object.entries(templates).forEach(([tplName, tpl]) => {
             const ts = params.map((a) => a?.type?.split(/[<>=()[\];|\s+]+/)).flat()
             const symbols = [ctx.nodeType, ctx.name, ctx.factory?.name, ...ts]
             const imported = [...new Set(symbols.filter((t) => t && classNames.includes(t)))]
-            const typeImports = imported.filter((i) => allMembers.interfaces[i] || (allMembers.classes[i] && allMembers.classes[i].isAbstract))
+            const typeImports = imported.filter((i) => allMembers.types[i] || allMembers.interfaces[i] || (allMembers.classes[i] && allMembers.classes[i].isAbstract))
             const imports = imported.filter((i) => !typeImports.includes(i))
 
             ctx.params = toDict(params)

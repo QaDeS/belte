@@ -30,9 +30,11 @@ export default {
                 },
                 preprocess(ctx) {
                     ctx.nodeType = nodeType
-                    ctx.nodeClass = nodeClass
                     if (ctx.factory) {
-                        ctx.tplName = ctx.factory.name.split('Create').pop()
+                        ctx.tplName = nodeClass
+                        ctx.nodeClass = nodeClass
+                    } else {
+                        ctx.nodeClass = ctx.name
                     }
                     if (ctx.methods) {
                         const attach = ctx.methods.attachControl
@@ -54,6 +56,7 @@ export default {
 
             }
         }
+        console.log(templates)
         return templates
     },
     partials: [

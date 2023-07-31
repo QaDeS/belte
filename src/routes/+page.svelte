@@ -12,8 +12,9 @@
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
 	import { writable } from 'svelte/store';
+	import ParticleSystem from '$lib/gen/babylon/ParticleSystem/ParticleSystem.svelte';
 
-    const textureUrl = Assets.textures.checkerboard_basecolor_png.rootUrl
+    const textureUrl = Assets.textures.checkerboard_basecolor_png.path
 
     let camPos = new Vector3(0, 5, -10)
     let targetPos = Vector3.Zero()
@@ -32,6 +33,10 @@
         easing: cubicOut
     });
 
+    let ps : ParticleSystem;
+
+    $: if(ps?.getParticleSystem()) ps.getParticleSystem().start()
+
 </script>
 
 {camPos}
@@ -47,5 +52,9 @@
             </StandardMaterial>
         </Ground>
         <ImportedMesh rootUrl={Assets.meshes.Yeti.rootUrl} sceneFilename={Assets.meshes.Yeti.filename} scaling={$s}/>
+
+        <ParticleSystem bind:this={ps} let:setters={{particleTexture}} capacity={2000} emitter={new Vector3(0, 0.5, 0)} >
+            <Texture setter={particleTexture} url={Assets.textures.flare_png.path} />
+        </ParticleSystem>
     </Scene>
 </Engine>
